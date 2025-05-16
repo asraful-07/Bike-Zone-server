@@ -5,12 +5,14 @@ const { MongoClient, ServerApiVersion } = require("mongodb");
 const port = process.env.PORT || 5000;
 const app = express();
 
-// Middleware code
+// Middleware
 app.use(cors());
 app.use(express.json());
 
+// MongoDB URI
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.w0mh3.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
+
+// Create MongoClient
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -19,28 +21,57 @@ const client = new MongoClient(uri, {
   },
 });
 
+// Global variable for collection
+let bikesCollection;
+
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
+    //Connect to MongoDB
     await client.connect();
-    // Send a ping to confirm a successful connection
+
+    // Get Database & Collection
+    const db = client.db("HunterDB");
+    bikesCollection = db.collection("bikes");
+
+    //Confirm connection
     await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
+    console.log("Connected to MongoDB successfully!");
+  } catch (err) {
+    console.error("MongoDB connection error:", err);
   }
 }
 run().catch(console.dir);
 
-// Root route
-app.get("/", (req, res) => {
-  res.send(" Hunter server is running");
+// POST route to insert new bike
+app.post("/bikes", async (req, res) => {
+  const newData = req.body;
+  try {
+    const result = await bikesCollection.insertOne(newData);
+    console.log("Inserted:", result);
+    res.send(result);
+  } catch (error) {
+    console.error("Insert error:", error);
+    res.status(500).send({ error: "Failed to insert bike data." });
+  }
 });
 
-// Start the server
+// GET route to fetch all bikes
+app.get("/bike", async (req, res) => {
+  try {
+    const result = await bikesCollection.find().toArray();
+    res.send(result);
+  } catch (error) {
+    console.error("Fetch error:", error);
+    res.status(500).send({ error: "Failed to fetch bike data." });
+  }
+});
+
+// Root route
+app.get("/", (req, res) => {
+  res.send("Hunter server is running 🚴");
+});
+
+// Start server
 app.listen(port, () => {
-  console.log(`Hunter is running on port : ${port}`);
+  console.log(`Hunter server is running on port: ${port}`);
 });
