@@ -58,12 +58,68 @@ app.post("/bikes", async (req, res) => {
 // GET route to fetch all bikes
 app.get("/bike", async (req, res) => {
   try {
-    const result = await bikesCollection.find().toArray();
-    res.send(result);
+    const {
+      category,
+      minPrice,
+      maxPrice,
+      sort,
+      search,
+      page = 1,
+      limit = 9,
+    } = req.query;
+
+    // Build query
+    let query = {};
+    if (category) query.category = category;
+    if (minPrice || maxPrice) {
+      query.regularPrice = {};
+      if (minPrice) query.regularPrice.$gte = Number(minPrice);
+      if (maxPrice) query.regularPrice.$lte = Number(maxPrice);
+    }
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // Build sort
+    let sortOption = {};
+    if (sort === "price-low") sortOption.regularPrice = 1;
+    if (sort === "price-high") sortOption.regularPrice = -1;
+    if (sort === "rating") sortOption.rating = -1;
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+    const total = await bikesCollection.countDocuments(query);
+    const totalPages = Math.ceil(total / limit);
+
+    // Fetch data
+    const result = await bikesCollection
+      .find(query)
+      .sort(sortOption)
+      .skip(skip)
+      .limit(Number(limit))
+      .toArray();
+
+    res.send({
+      bikes: result,
+      pagination: {
+        page: Number(page),
+        totalPages,
+        totalBikes: total,
+      },
+    });
   } catch (error) {
     console.error("Fetch error:", error);
     res.status(500).send({ error: "Failed to fetch bike data." });
   }
+});
+
+// get all biodata from db
+app.get("/bike-info", async (req, res) => {
+  const result = await bikesCollection.find().toArray();
+  res.send(result);
 });
 
 // Root route
