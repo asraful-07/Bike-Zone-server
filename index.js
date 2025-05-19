@@ -116,7 +116,26 @@ app.get("/bike", async (req, res) => {
   }
 });
 
-// get all biodata from db
+// GET single bike by ID
+app.get("/bike-data/:id", async (req, res) => {
+  const { id } = req.params;
+  const { ObjectId } = require("mongodb");
+
+  try {
+    const bike = await bikesCollection.findOne({ _id: new ObjectId(id) });
+
+    if (!bike) {
+      return res.status(404).send({ message: "Bike not found" });
+    }
+
+    res.send(bike);
+  } catch (error) {
+    console.error("Fetch single bike error:", error);
+    res.status(500).send({ error: "Failed to fetch bike by ID." });
+  }
+});
+
+// get all dike data from db
 app.get("/bike-info", async (req, res) => {
   const result = await bikesCollection.find().toArray();
   res.send(result);
